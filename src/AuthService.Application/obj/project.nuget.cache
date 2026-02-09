@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "g/qxqFX0czs=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\informatica\\Documents\\2024024\\KinalSport\\auth-service\\src\\AuthService.Application\\AuthService.Application.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\informatica\\.nuget\\packages\\fluentvalidation\\12.1.1\\fluentvalidation.12.1.1.nupkg.sha512"
+  ],
+  "logs": []
+}
