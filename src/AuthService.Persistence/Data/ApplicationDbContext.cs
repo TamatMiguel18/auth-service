@@ -1,4 +1,4 @@
-using AuthService.Domain.Entities;
+using AuthService.Domain.Entitis;
 using Microsoft.EntityFrameworkCore;
  
 namespace AuthService.Persistence.Data;

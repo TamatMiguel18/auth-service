@@ -1,9 +1,16 @@
+using AuthService.Persistence.Data;
+using AuthService.Application.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Configuracion de servicios por medio de extensiones
+builder.Services.AddApplicationServices(builder.Configuration);
+
 
 var app = builder.Build();
 
@@ -35,6 +42,28 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast")
 .WithOpenApi();
+
+// Inicializar la base de datos
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        logger.LogInformation("Iniciando migraciones...");
+        await context.Database.EnsureCreatedAsync();
+        logger.LogInformation("Base de datos creada exitosamente.");
+
+        await DataSeeder.SeedAsync(context);
+        logger.LogInformation("Base de datos sembrada exitosamente.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Ocurrio un error al crear la base de datos.");
+        throw;// Detiene la aplicacion si hay un error al crear la base de datos
+    }
+}
 
 app.Run();
 
