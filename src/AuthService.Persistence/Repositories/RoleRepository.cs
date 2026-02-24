@@ -1,37 +1,59 @@
-using AuthService.Domain.Entitis;
+using AuthService.Domain.Entities;
 using AuthService.Domain.Interfaces;
 using AuthService.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace AuthService.Persistence.Repositories;
 
-public class RoleRepository(ApplicationDbContext context) : IRoleRepository
+public class RoleRepository : IRoleRepository
 {
-    public async Task<Role?> GetByIdAsync(string roleName)
+    private readonly ApplicationDbContext _context;
+
+    // Inyectamos el contexto de la base de datos
+    public RoleRepository(ApplicationDbContext context)
     {
-        return await context.Roles
-        .Include(r => r.UserRoles)
-        .FirstOrDefaultAsync(r => r.Name == roleName);
+        _context = context;
     }
 
-    public async Task<int> CountUsersByRoleAsync(string roleName)
+    public async Task<Role?> GetByNameAsync(string name)
     {
-        return await context.Roles
-        .Where(ur => ur.Role.Name == RoleName)
-        .CountAsync();
+        return await _context.Roles
+            .Include(r => r.UserRoles)
+            .FirstOrDefaultAsync(r => r.Name == name);
     }
 
-    public async Task<IReadOnlyList<User>> GetUsersByRoleAsync(string roleName)
+    // Corregido el nombre: CountUsersInRoleAsync (con 's') 
+    // y usando roleId como pide la interfaz
+    public async Task<int> CountUsersInRoleAsync(string roleId)
     {
-        return await context.Roles
-        .Where(ur => ur.Role.Name == RoleName)
-        .Select(ur => ur.User)
-        .Include(u => u.Userprofile)
-        .Include(u => u.UserEmail)
-        .Include(u => u.UserPasswordReset)
-        .Include(u => u.UserRoles)
-        .ThenInclude(ur => ur.Role)
-        .ToListAsync();
-        .ContinueWith(t =>(IReadOnlyList<User>))
+        return await _context.UserRoles
+            .Where(ur => ur.RoleId == roleId) 
+            .CountAsync();
+    }
+
+    // Ajustado para que reciba roleId y devuelva la lista correctamente
+    public async Task<IReadOnlyList<User>> GetUserByRoleAsync(string roleId)
+    {
+        var users = await _context.UserRoles
+            .Where(ur => ur.RoleId == roleId)
+            .Select(ur => ur.User)
+            .Include(u => u.UserProfile)
+            .Include(u => u.UserEmail)
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .ToListAsync();
+
+        return users.AsReadOnly();
+    }
+
+    // Corregido el nombre: GetUserRoleNameAsync (sin la 's' al final de Name)
+    public async Task<IReadOnlyList<string>> GetUserRoleNameAsync(string userId)
+    {
+        var roles = await _context.UserRoles
+            .Where(ur => ur.UserId == userId)
+            .Select(ur => ur.Role.Name)
+            .ToListAsync();
+
+        return roles.AsReadOnly();
     }
 }

@@ -1,5 +1,5 @@
+using AuthService.Api.Extensions;
 using AuthService.Persistence.Data;
-using AuthService.Application.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,9 +8,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configuracion de servicios por medio de extensiones
-builder.Services.AddApplicationServices(builder.Configuration);
+// Configuracion de rutas
+builder.Services.AddControllers();
 
+//Configuracion de servicios por medio de metodos de extension
+builder.Services.AddPersistenceServices(builder.Configuration);
 
 var app = builder.Build();
 
@@ -22,6 +24,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+// Configurar rutas
+app.MapControllers();
 
 var summaries = new[]
 {
@@ -43,27 +47,29 @@ app.MapGet("/weatherforecast", () =>
 .WithName("GetWeatherForecast")
 .WithOpenApi();
 
-// Inicializar la base de datos
+//Inicializacion de la base de datos
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
+
     try
     {
-        logger.LogInformation("Iniciando migraciones...");
-        await context.Database.EnsureCreatedAsync();
-        logger.LogInformation("Base de datos creada exitosamente.");
+        logger.LogInformation("Iniciando la migracion de la base de datos...");   
 
-        await DataSeeder.SeedAsync(context);
-        logger.LogInformation("Base de datos sembrada exitosamente.");
+        await context.Database.EnsureCreatedAsync();   
+
+        logger.LogInformation("Base de datos migrada exitosamente.");
+        await DataSeeder.SeedAsync(context); // Llamada al método de seeding
+        logger.LogInformation("Datos iniciales insertados exitosamente.");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Ocurrio un error al crear la base de datos.");
-        throw;// Detiene la aplicacion si hay un error al crear la base de datos
+        logger.LogError(ex, "Error al inicializar la base de datos.");
+        throw; // Detener la aplicación si ocurre un error durante la inicialización de la base de datos
     }
 }
+//--------------------------------------------------------//
 
 app.Run();
 

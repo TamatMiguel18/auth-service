@@ -1,6 +1,6 @@
 using AuthService.Application.Services;
-using AuthService.Domain.Entitis;
 using AuthService.Domain.Interfaces;
+using AuthService.Domain.Entities;
 using AuthService.Persistence.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,110 +8,120 @@ namespace AuthService.Persistence.Repositories;
 
 public class UserRepository(ApplicationDbContext context) : IUserRepository
 {
-    // Metodo para obtener un usuario por su id
+    //Forma en la que va a mostrar el usuario, con sus relaciones,
+    //para que se pueda usar en el servicio de autenticación
     public async Task<User> GetByIdAsync(string id)
     {
+        //Incluye las relaciones necesarias para obtener toda la información del usuario
         var user = await context.Users
-        .Include(u => u.Userprofile)
+        .Include(u => u.UserProfile)
         .Include(u => u.UserEmail)
         .Include(u => u.UserPasswordReset)
         .Include(u => u.UserRoles)
         .FirstOrDefaultAsync(u => u.Id == id);
-        return user ?? throw new Exception("User not found");
+
+        return user ?? throw new InvalidOperationException($"User with id {id} not found.");
     }
 
-    // Metodo para obtener un usuario por su email
-    public async Task<User> GetByEmailAsync(string email)
+
+    //Obtiene un usuario por su email, incluyendo las relaciones necesarias para obtener toda la información del usuario
+    public async Task<User?> GetByEmailAsync(string email)
     {
+        //Incluye las relaciones necesarias para obtener toda la información del usuario
         var user = await context.Users
-        .Include(u => u.Userprofile)
+        .Include(u => u.UserProfile)
         .Include(u => u.UserEmail)
         .Include(u => u.UserPasswordReset)
         .Include(u => u.UserRoles)
-        .FirstOrDefaultAsync(u => u.UserEmail.Email == email);
-        return user ?? throw new Exception("User not found");
+        .ThenInclude(ur => ur.Role)
+        .FirstOrDefaultAsync(u => EF.Functions.ILike(u.Email, email));
+
+        return user;
+
     }
 
-    // Metodo para obtener un usuario por su username
-    public async Task<User> GetByUsernameAsync(string username)
+    //Obtiene un usuario por su username, incluyendo las relaciones necesarias para obtener toda la información del usuario
+    public async Task <User?> GetByUsernameAsync(string username)
     {
-        var user = await context.Users
-        .Include(u => u.Userprofile)
+        return await context.Users
+        .Include(u => u.UserProfile)
         .Include(u => u.UserEmail)
         .Include(u => u.UserPasswordReset)
         .Include(u => u.UserRoles)
-        .FirstOrDefaultAsync(u => u.Userprofile.Username == username);
-        return user ?? throw new Exception("User not found");
-    }   
+        .ThenInclude(ur => ur.Role)
+        .FirstOrDefaultAsync(u => EF.Functions.ILike(u.Username, username));
 
-    // Busca un usuario mediante su token de verificacion de correo 
-    public async Task<User> GetByVerificationTokenAsync(string token)
+    }
+
+    //Obtiene un usuario por su token de verificación de email, incluyendo las relaciones necesarias para obtener toda la información del usuario
+    public async Task<User?> GetByEmailVerificationTokenAsync(string token)
     {
-        var user = await context.Users
-        .Include(u => u.Userprofile)
+        return await context.Users
+        .Include(u => u.UserProfile)
         .Include(u => u.UserEmail)
         .Include(u => u.UserPasswordReset)
         .Include(u => u.UserRoles)
-        .FirstOrDefaultAsync(u => u.UserEmail.VerificationToken == token);
-        return user ?? throw new Exception("User not found");
+        .ThenInclude(ur => ur.Role)
+        .FirstOrDefaultAsync(u => u.UserEmail != null &&
+                            u.UserPasswordReset.PasswordResetToken == token);
     }
 
-    // Buscar un usuario mediante su token de restablecimiento de contraseña
-    public async Task<User?> GetByResetTokenAsync(string token)
-    {
-        var user = await context.Users
-        .Include(u => u.Userprofile)
+    public async Task<User?> GetByPasswordResetTokenAsync(string token)
+{
+    return await context.Users
+        .Include(u => u.UserProfile)
         .Include(u => u.UserEmail)
         .Include(u => u.UserPasswordReset)
         .Include(u => u.UserRoles)
-        .FirstOrDefaultAsync(u => u.UserPasswordReset.ResetToken == token);
-    }
+        .ThenInclude(ur => ur.Role)
+        .FirstOrDefaultAsync(u =>
+            u.UserPasswordReset != null &&
+            u.UserPasswordReset.PasswordResetToken == token);
+}
 
-    // Crea un nuevo registro de usuario
+    //Crea un nuevo usuario, guardando los cambios y luego obteniendo el usuario creado para devolverlo
     public async Task<User> CreateAsync(User user)
     {
         context.Users.Add(user);
         await context.SaveChangesAsync();
-        return user;
+        return await GetByIdAsync(user.Id);
     }
 
-    // Actualiza un registro de usuario
+    //Actualiza un usuario, guardando los cambios y luego obteniendo el usuario actualizado para devolverlo
     public async Task<User> UpdateAsync(User user)
     {
-        context.Users.Update(user);
         await context.SaveChangesAsync();
         return await GetByIdAsync(user.Id);
     }
 
-    // Elimina un registro de usuario
-    public async Task<bool> DeleteAsync(User user)
+    //Elimina un usuario, primero obteniendo el usuario para asegurarse de que existe, luego eliminándolo y guardando los cambios
+    public async Task<bool> DeleteAsync(string id)
     {
-        var user = await GetByIdAsync(user.Id);
+        var user = await GetByIdAsync(id);
         context.Users.Remove(user);
         await context.SaveChangesAsync();
         return true;
     }
 
-    // Verificar si su email ya esta registrado
-    public async Task<bool> IsEmailRegisteredAsync(string email)
+    //Verifica si existe un usuario con el email o username dado, para evitar duplicados
+    public async Task<bool> ExistsByEmailAsync(string email)
     {
         return await context.Users
-        .AnyAsync(u => EF.Functions.Like(u.UserEmail.Email, email));
+            .AnyAsync(u => EF.Functions.ILike(u.Email, email));
     }
 
-    // Verificar si su username ya esta registrado
     public async Task<bool> ExistsByUsernameAsync(string username)
     {
         return await context.Users
-        .AnyAsync(u => EF.Functions.Like(u.Userprofile.Username, username));
+            .AnyAsync(u => EF.Functions.ILike(u.Username, username));
     }
 
-        // Cambia el rol de un usuario: elimina roles previos y asigna uno nuevo
+    //Cambia el rol del usuario, eliminando los roles anteriores y asignando el nuevo rol
     public async Task UpdateUserRoleAsync(string userId, string roleId)
     {
         var existingRoles = await context.UserRoles
-            .Where(ur => ur.UserId == userId)
-            .ToListAsync();
+        .Where(ur => ur.UserId == userId)
+        .ToListAsync();
 
         context.UserRoles.RemoveRange(existingRoles);
 
@@ -128,3 +138,4 @@ public class UserRepository(ApplicationDbContext context) : IUserRepository
         await context.SaveChangesAsync();
     }
 }
+
