@@ -1,13 +1,12 @@
 using AuthService.Domain.Entities;
-
 namespace AuthService.Domain.Interfaces;
 
-public interface IUserRepository
-{
-    //Metodos de Consulta
+public interface IUserRepository{
+
+    // Metodos de consuta
     Task<User> CreateAsync(User user);
 
-    Task<User> GetByIdAsync(string id);
+    Task<User?> GetByIdAsync(string id);
 
     Task<User?> GetByEmailAsync(string email);
 
@@ -22,9 +21,8 @@ public interface IUserRepository
     Task<bool> ExistsByUsernameAsync(string username);
 
     Task<User> UpdateAsync(User user);
-
+    
     Task<bool> DeleteAsync(string id);
 
     Task UpdateUserRoleAsync(string userId, string roleId);
-    
 }

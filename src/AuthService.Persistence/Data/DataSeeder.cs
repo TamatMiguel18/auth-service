@@ -1,6 +1,6 @@
 using AuthService.Domain.Entities;
-using AuthService.Application.Services;
 using AuthService.Domain.Constants;
+using AuthService.Application.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace AuthService.Persistence.Data;

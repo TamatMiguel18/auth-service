@@ -17,7 +17,7 @@ namespace AuthService.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.20")
+                .HasAnnotation("ProductVersion", "8.0.22")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -81,6 +81,7 @@ namespace AuthService.Persistence.Migrations
                         .HasColumnName("password");
 
                     b.Property<bool>("Status")
+                        .HasMaxLength(25)
                         .HasColumnType("boolean")
                         .HasColumnName("status");
 
@@ -289,14 +290,14 @@ namespace AuthService.Persistence.Migrations
 
             modelBuilder.Entity("AuthService.Domain.Entities.UserProfile", b =>
                 {
-                    b.HasOne("AuthService.Domain.Entities.User", "User")
+                    b.HasOne("AuthService.Domain.Entities.User", "user")
                         .WithOne("UserProfile")
                         .HasForeignKey("AuthService.Domain.Entities.UserProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_profile_user_user_id");
 
-                    b.Navigation("User");
+                    b.Navigation("user");
                 });
 
             modelBuilder.Entity("AuthService.Domain.Entities.UserRole", b =>

@@ -1,31 +1,26 @@
 using AuthService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace AuthService.Persistence.Data;
+namespace AuthService.Persistence.Data{
 
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
+    // Metodo Constructor
+    // El constructor de la clase ApplicationDbContext recibe un objeto DbContextOptions<ApplicationDbContext> que contiene la configuración necesaria para establecer la conexión a la base de datos y configurar el contexto de Entity Framework Core. Este constructor se utiliza para inicializar el contexto con las opciones proporcionadas.
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
-        
     }
 
-    //Representacion de trabblas en el modelo 
-    //(Cada uno es una tabla en la base de datos)
+    // Representación de las tablas en el modelo
     public DbSet<User> Users { get; set; }
     public DbSet<UserProfile> UserProfiles { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<UserEmail> UserEmails { get; set; }
-    public DbSet<UserPasswordReset> UserPasswordReset { get; set; }
+    public DbSet<UserPasswordReset> UserPasswordResets { get; set; }
 
-    
-    
-
-//Convierte camel case a snake_case para los nombres de tablas y columnas en la base de datos
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
+    {
     base.OnModelCreating(modelBuilder);
     foreach (var entity in modelBuilder.Model.GetEntityTypes())
     {
@@ -40,82 +35,78 @@ public class ApplicationDbContext : DbContext
             if (!string.IsNullOrEmpty(columnName))
             {
                 property.SetColumnName(ToSnakeCase(columnName));
-            }  
+            }
         }
+     }
+
+    /*
+        -------------------------------------------------------------------------------------
+        CONFIGURACION ESPECIFICA DE LA ENTIDAD USER
+        -------------------------------------------------------------------------------------
+    */
+    modelBuilder.Entity<User>(entity =>
+    {
+        // Llave primaria\
+        entity.HasKey(e => e.Id);
+
+        // Indices unicos
+        entity.HasIndex(e => e.Email).IsUnique();
+        entity.HasIndex(e => e.Username).IsUnique();
+
+        // Relacion uno a uno con UserProfile
+        entity.HasOne(e => e.UserProfile)
+              .WithOne(up => up.user)
+              .HasForeignKey<UserProfile>(up => up.UserId)
+              .OnDelete(DeleteBehavior.Cascade);
+        // Relacion uno a muchos con UserRole
+        entity.HasMany(e => e.UserRoles)
+              .WithOne(ur => ur.User)
+              .HasForeignKey(ur => ur.UserId)
+              .OnDelete(DeleteBehavior.Cascade);
+        // Relacion uno a uno con UserPasswordReset
+        entity.HasOne(e => e.UserPasswordReset)
+              .WithOne(ur => ur.User)
+              .HasForeignKey<UserPasswordReset>(ur => ur.UserId)
+              .OnDelete(DeleteBehavior.Cascade);
+        // Relacion uno a uno con UserEmail
+        entity.HasOne(e => e.UserEmail)
+              .WithOne(ue => ue.User)
+              .HasForeignKey<UserEmail>(ue => ue.UserId)
+              .OnDelete(DeleteBehavior.Cascade);
+    });
+
+    // Configuración específica de la entidad UserRole
+    modelBuilder.Entity<UserRole>(entity =>
+    {
+        // Llave primaria compuesta
+        entity.HasKey(e => e.Id);
+
+        // Indice unico para evitar duplicados en la asignación de roles a usuarios
+        // El usuario no puede tener el mismo rol asignado más de una vez
+        entity.HasIndex(e => new { e.UserId, e.RoleId }).IsUnique();
+    });
+
+    modelBuilder.Entity<Role>(entity =>
+    {
+        // Llave primaria
+        entity.HasKey(e => e.Id);
+
+        // Indice unico para el nombre del rol
+        entity.HasIndex(e => e.Name).IsUnique();
+    });
     }
 
-
-//------------------------------------------------//
-//Configuracion especifica de la entidad user
-//------------------------------------------------//
-modelBuilder.Entity<User>(entity =>
-{
-    //Llave primaria
-    entity.HasKey(e => e.Id);
-
-    entity.HasIndex(e => e.Email).IsUnique();
-    entity.HasIndex(e => e.Username).IsUnique();
-
-    //Relacion de 1:1 con UserProfile
-    entity.HasOne(e => e.UserProfile)
-        .WithOne(p => p.User)
-        .HasForeignKey<UserProfile>(p => p.UserId)
-        .OnDelete(DeleteBehavior.Cascade);
-
-    //Relacion de 1:N con UserRoles
-    entity.HasMany(e => e.UserRoles)
-        .WithOne(ur => ur.User)
-        .HasForeignKey(ur => ur.UserId)
-        .OnDelete(DeleteBehavior.Cascade);
-
-    //Relacion 1:1 con UserEmail
-    entity.HasOne(e => e.UserEmail)
-        .WithOne(ue => ue.User)
-        .HasForeignKey<UserEmail>(ue => ue.UserId)
-        .OnDelete(DeleteBehavior.Cascade);
-
-    //Relacion 1:N con UserPasswordReset
-    entity.HasOne(e => e.UserPasswordReset)
-        .WithOne(upr => upr.User)
-        .HasForeignKey<UserPasswordReset>(upr => upr.UserId)
-        .OnDelete(DeleteBehavior.Cascade);      
-});
-
-
-//Cnfiguracion especifica de la entidad userRole
-modelBuilder.Entity<UserRole>(entity =>
-{
-    //Llave primario
-    entity.HasKey(e => e.Id);
-    //El usuario no puede tener el mismo rol mas de una vez
-    entity .HasIndex(e => new { e.UserId, e.RoleId }).IsUnique();
-});
-
-//------------------------------------------------//
-//Configuracion especifica de la entidad Role
-//------------------------------------------------//
-modelBuilder.Entity<Role>(entity =>
-{
-    //Llave primaria
-    entity.HasKey(e => e.Id);
-    //El nombre del rol debe ser unico
-    entity.HasIndex(e => e.Name).IsUnique();
-});
-
-}
-//-----------------------------------------------//
-
-
-    //Funcion para configrar el nombre de clase a nombre de DB en formato snake_case
+    // Funcion para configurar el nombre de clase a nombre de DB
     private static string ToSnakeCase(string input)
     {
         if (string.IsNullOrEmpty(input))
             return input;
-
+ 
         return string.Concat(
             input.Select((x, i) => i > 0 && char.IsUpper(x) 
                 ? "_" + x.ToString().ToLower() 
                 : x.ToString().ToLower())
         );
     }
+}
 }
