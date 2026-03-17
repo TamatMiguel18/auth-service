@@ -69,7 +69,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [HttpPost("register")]
     [RequestSizeLimit(10 * 1024 * 1024)] // 10MB límite
     [EnableRateLimiting("AuthPolicy")]
-    public async Task<ActionResult<RegisterResponseDto>> Register([FromForm] RegisterDto registerDto)
+    public async Task<ActionResult<RegisterResponseDto>> Register([FromBody] RegisterDto registerDto)
     {
         var result = await authService.RegisterAsync(registerDto);
         // Devolver 201 Created para registro
